@@ -2,6 +2,13 @@
 
 fastjson序列化性能测试
 
+## 测试目的
+因为公司使用rocket mq的地方很多，又因为公司封装的发送消息的框架，即使参数是byte[]，也会序列化一次：ObjectUtil.objectSerialize，所以针对目前项目中使用的所有序列化方式做了一个对比测试
+
+## 测试方法
+
+junit5 并行测试，分别在linux 和 windows上环境上测试
+
 ## 测试结果
 
 + 序列化对象：fastjson比java stream序列化快，推荐 使用testObj3的代码，原因：1.速度比java stream快，2.对象比JSONObject更容易取值
@@ -9,34 +16,41 @@ fastjson序列化性能测试
 
 JSONObject测试
 
-|  | 100万 第1次 | 100万 第2次 | 100万 第3次 |
-| ---- | ---- |  ---- | ---- | 
-| testObj1 | 75 | 70 | 83 |
-| testObj2 | 90 | 79 | 106 |
-| testObj3 | 108 | 98 | 124 |
-| testObj4 | 108 | 100 | 112 |
-| testObj5 | 193 | 171 | 173 |
-| testObj6 | 185 | 162 | 165 |
-| testObj7 | 169 | 166 | 177 |
+|  | 100万 windows | 100万 linux |  代码片段 |
+| ---- | ---- |  ---- | ---- |
+| testObj1 | 75 | 64 |byte[] b1=JSONObject.toJSONBytes(ipBTaobaoOrder);<br>IpBTaobaoOrder b2=JSONObject.parseObject(b1,IpBTaobaoOrder.class);|
+| testObj2 | 90 | 46 |byte[] b1=ObjectUtil.objectSerialize(JSONObject.toJSONString(ipBTaobaoOrder));<br>JSONObject b2=JSONObject.parseObject(ObjectUtil.objectDeserialize(b1).toString()); |
+| testObj3 | 108 | 87 | byte[] b1=ObjectUtil.objectSerialize(JSONObject.toJSONString(ipBTaobaoOrder));<br>IpBTaobaoOrder b2=JSONObject.parseObject(ObjectUtil.objectDeserialize(b1).toString(),IpBTaobaoOrder.class);|
+| testObj4 | 108 | 85 |byte[] b1=ObjectUtil.objectSerialize(JSONObject.toJSONString(ipBTaobaoOrder));<br>JSONObject bb=JSONObject.parseObject(ObjectUtil.objectDeserialize(b1).toString());<br>IpBTaobaoOrder b2=JSONObject.toJavaObject(bb,IpBTaobaoOrder.class); |
+| testObj5 | 193 | 215 | JSONObject jsonObject = JSONObject.parseObject(JSON.toJSONString(ipBTaobaoOrder), Feature.OrderedField);<br>byte[] b1=ObjectUtil.objectSerialize(jsonObject);<br>JSONObject bb = JSON.parseObject(ObjectUtil.objectDeserialize(b1).toString());<br>IpBTaobaoOrder b2=JSONObject.toJavaObject(bb,IpBTaobaoOrder.class);|
+| testObj6 | 185 | 210 |JSONObject jsonObject = JSONObject.parseObject(JSON.toJSONString(ipBTaobaoOrder), Feature.OrderedField);<br>byte[] b1=ObjectUtil.objectSerialize(jsonObject);<br>IpBTaobaoOrder b2=JSONObject.parseObject(ObjectUtil.objectDeserialize(b1).toString(),IpBTaobaoOrder.class); |
+| testObj7 | 169 | 137 | byte[] b1=ObjectUtil.objectSerialize(ipBTaobaoOrder);<br>IpBTaobaoOrder b2=(IpBTaobaoOrder)ObjectUtil.objectDeserialize(b1);|
 
 JSONArray测试
 
-|  | 100万 第1次 | 100万 第2次 | 100万 第3次 |
-| ---- | ---- |  ---- | ---- | 
-| testList1 | 68 | 65 | 65 |
-| testList2 | 76 | 73 | 77 |
-| testList3 | 91 | 90 | 93 |
-| testList4 | 73 | 72 | 77 |
-| testList5 | 108 | 108 | 106 |
-| testList6 | 150 | 148 | 147 |
-| testList7 | 17 | 17 | 17 |
+|  | 100万 windows | 100万 linux |代码片段 |
+| ---- | ---- |  ---- |---- |
+| testList1 | 68 | 68 |byte[] b1 = JSONObject.toJSONBytes(ipBTaobaoOrderList);<br>JSONArray bb = (JSONArray) JSONObject.parse(b1);<br>List<IpBTaobaoOrder> b2 = bb.toJavaList(IpBTaobaoOrder.class);|
+| testList2 | 76 | 76 |byte[] b1 = ObjectUtil.objectSerialize(JSONObject.toJSONString(ipBTaobaoOrderList));<br>JSONArray b2 = JSONObject.parseArray(ObjectUtil.objectDeserialize(b1).toString());|
+| testList3 | 91 | 93 |byte[] b1 = ObjectUtil.objectSerialize(JSONObject.toJSONString(ipBTaobaoOrderList));<br>List<IpBTaobaoOrder> b2 = JSONObject.parseArray(ObjectUtil.objectDeserialize(b1).toString(), IpBTaobaoOrder.class);|
+| testList4 | 73 | 91 |byte[] b1 = ObjectUtil.objectSerialize(JSONObject.toJSONString(ipBTaobaoOrderList));<br>JSONArray bb = JSONObject.parseArray(ObjectUtil.objectDeserialize(b1).toString());<br>List<IpBTaobaoOrder> b2 = bb.toJavaList(IpBTaobaoOrder.class)|
+| testList5 | 108 | 155 |JSONArray jsonArray = JSONObject.parseArray(JSON.toJSONString(ipBTaobaoOrderList));<br>byte[] b1 = ObjectUtil.objectSerialize(jsonArray);<br>JSONArray bb = JSON.parseArray(ObjectUtil.objectDeserialize(b1).toString());<br>List<IpBTaobaoOrder> b2 = bb.toJavaList(IpBTaobaoOrder.class)|
+| testList6 | 150 | 177 |JSONArray jsonArray = JSONObject.parseArray(JSON.toJSONString(ipBTaobaoOrderList));<br>byte[] b1 = ObjectUtil.objectSerialize(jsonArray);<br>List<IpBTaobaoOrder> b2 = JSONObject.parseArray(ObjectUtil.objectDeserialize(b1).toString(), IpBTaobaoOrder.class);|
+| testList7 | 17 | 15 |byte[] b1 = ObjectUtil.objectSerialize(ipBTaobaoOrderList);<br>List<IpBTaobaoOrder> b2 = (List<IpBTaobaoOrder>) ObjectUtil.objectDeserialize(b1); |
 
-硬件信息如下：
+windows信息：硬件信息如下：
 
 - Operating System: Windows 10 企业版 64-bit (10.0, Build 18362) (18362.19h1_release.190318-1202)
 - System Model: Latitude E5570
 - Processor: Intel(R) Core(TM) i5-6300U CPU @ 2.40GHz (4 CPUs), ~2.5GHz
 - Memory: 32768MB RAM
+
+linux信息：在内存8G的ubuntu上运行的  
+- LSB Version:    core-11.1.0ubuntu2-noarch:security-11.1.0ubuntu2-noarch
+- Distributor ID: Ubuntu
+- Description:    Ubuntu 20.04.1 LTS
+- Release:        20.04
+- Codename:       focal
 
 ## 测试开始
 
